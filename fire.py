@@ -9,7 +9,8 @@ import matplotlib.animation as animation
 
 timestep= 100   # Timestep from navigation algorithm
 lut= dict()
-fig, ax = plt.subplots()
+fig = plt.figure()
+ax = fig.add_subplot(1,1,1)
 
 
 toa= gdal.Open('data/ash1_raster.toa')
@@ -53,12 +54,10 @@ for k,v in lut.items():
     total += len(v)
 print total
 
-from time import sleep
-
 im = ax.matshow(anim_plot)
-fig.show()
+im.set_clim(0, 1000)
+#fig.show()
 totalplotted = 0
-
 for i in range(0,max_time,timestep):
     if lut.get(i) is not None:
         totalplotted += len(lut[i])
@@ -70,9 +69,9 @@ for i in range(0,max_time,timestep):
             #    for j in (y-1,y,y+1):
             #        print anim_plot[i][j]
         im.set_data(anim_plot)
-        plt.draw()
+    plt.pause(0.001)
 
-    plt.pause(0.1)
+plt.show()   # Stop at end.
 
 #anim = animation.FuncAnimation(fig, anim, interval=1)
 
