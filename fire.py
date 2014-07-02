@@ -3,30 +3,19 @@ import matplotlib.pyplot as plt
 #from mpl_toolkits.basemap import Basemap
 import pylab
 from osgeo import gdal
+import matplotlib.animation as animation
 
-timestep= 10   # Timestep from navigation algorithm
+timestep= 100   # Timestep from navigation algorithm
 lut= dict()
+fig= plt.figure()
 
 
 toa= gdal.Open('/home/rover/Documents/Programming/ash1_raster.toa')
 fli= gdal.Open('/home/rover/Documents/Programming/ash1_raster.fli')
 fli = fli.ReadAsArray()
 toa= toa.ReadAsArray()
+anim_plot= [[0 for i in range(len(fli[0]))] for j in range(len(fli))]
 
-#print "%s", toa
-"""
-lut = []
-for i in xrange(0, len(fli)):
-	for j in xrange(0, len(fli[0])):
-		lut.append([i])
-"""
-# Data of Lookup will look something like this:
-{
-   -1: set([(5,0), (5,1), (5,2)]),
-    0: set([(0,0), (0,1), (0,2)]),
-    1: set([(1,0), (1,1)]),
-    5: set([(3,0), (3,1), (3,2), (3,3), (4,2), (4,4)])
-}
 
 def _floor(i, step):
 	return int(i*1000 / step) * step
@@ -54,11 +43,24 @@ max_time = pack_lut(lut, toa, timestep)
 for i in range(0, max_time, timestep):
 	if lut.get(i) is not None:
 		print repr(i)+": "+repr(lut[i])
-  
-"""def animate(i):
-         for fli
-			fig = plt.imshow (data1, interpolation='nearest', vmin=0)
-			fig = plt.imshow (fli, interpolation='nearest', vmin=0)
 
-anim = animation.FuncAnimation(fig, animate, frames= xrange(100), fargs= (), interval=20)
-plt.show()"""
+
+totalplotted = 0
+def anim(i):
+	global anim_plot, fig, totalplotted
+	i = i*timestep
+	if lut.get(i) is not None:
+		totalplotted += len(lut[i])
+		print len(lut[i]), "cells to plot,", totalplotted, "plotted so far"
+		for x,y in lut[i]:
+			#print anim_plot[x][y], "setting to", fli[x][y], ":"
+			anim_plot[x][y]= fli[x][y]
+			#for i in (x-1,x,x+1):
+			#	for j in (y-1,y,y+1):
+			#		print anim_plot[i][j]
+		fig = plt.imshow(anim_plot)
+
+
+anim = animation.FuncAnimation(fig, anim, interval=1)
+plt.show()
+
