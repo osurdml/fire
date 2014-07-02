@@ -4,7 +4,9 @@ import matplotlib.pyplot as plt
 import pylab
 from osgeo import gdal
 
-timestep= 1   # Timestep from navigation algorithm
+timestep= 10   # Timestep from navigation algorithm
+lut= dict()
+
 
 toa= gdal.Open('/home/rover/Documents/Programming/ash1_raster.toa')
 fli= gdal.Open('/home/rover/Documents/Programming/ash1_raster.fli')
@@ -12,12 +14,12 @@ fli = fli.ReadAsArray()
 toa= toa.ReadAsArray()
 
 #print "%s", toa
-
-lookup = []
+"""
+lut = []
 for i in xrange(0, len(fli)):
 	for j in xrange(0, len(fli[0])):
-		lookup.append([i])
-
+		lut.append([i])
+"""
 # Data of Lookup will look something like this:
 {
    -1: set([(5,0), (5,1), (5,2)]),
@@ -27,24 +29,31 @@ for i in xrange(0, len(fli)):
 }
 
 def _floor(i, step):
-    int(i*1000 / step) * step
+	return int(i*1000 / step) * step
+	
 
 # You need a packing function:
 def pack_lut(lut, toa, timestep):
+	max_time = 0
   	for i in xrange(0, len(toa)):
         	for j in xrange(0, len(toa[0])):
             		if toa[i][j] == -1:
             			continue;
-        		time = _floor(toa[i][j])
+        		time = _floor(toa[i][j], timestep)
 	        	cell = (i,j)
-        		if lut[time] is None:
-	            		lut[time] = set(cell)
+        		if lut.get(time) is None:
+	            		lut[time] = set([cell])
         		else:
         	    		lut[time].add(cell)   # TODO: need to use set, not list
+			if time > max_time:
+				max_time = time
+	return max_time			
 
-        
+max_time = pack_lut(lut, toa, timestep)
 
-print "%s", lookup
+for i in range(0, max_time, timestep):
+	if lut.get(i) is not None:
+		print repr(i)+": "+repr(lut[i])
   
 """def animate(i):
          for fli
