@@ -7,35 +7,27 @@ Wildfire UAV exploration/exploitation monitoring simulation
 """
 #!/usr/bin/env python2
 
+TIMESTEP = 0.1
+
+import math
 import numpy as np
 from scipy.signal import convolve2d
+from skimage.draw import polygon, circle
+from skimage.transform import rotate
 import matplotlib.pyplot as plt
 #from mpl_toolkits.basemap import Basemap
 import pylab
 from osgeo import gdal
 import matplotlib.animation as animation
+
 np.set_printoptions(threshold='nan')
-timestep= 100   # Timestep from navigation algorithm
-lut= dict()
 fig = plt.figure()
 ax = fig.add_subplot(1,1,1)
-
 
 toa= gdal.Open('data/ash1_raster.toa')
 fli= gdal.Open('data/ash1_raster.fli')
 fli = fli.ReadAsArray()
 toa= toa.ReadAsArray()
-
-anim_plot= np.ndarray((len(fli), len(fli[0])))
-fire_map= np.ndarray((len(fli), len(fli[0])))
-
-
-"""
-for i in range(len(fli))
-	for j in range(len(fli)
-	if fli(i,j)
-		print fli
-"""
 
 class uav():	
 
@@ -60,67 +52,48 @@ take in data, use centers to determine if in range
 make movement decision
 move
 """
-#time cutoff
-def _floor(i, step):
-    return int(i*1000 / step) * step
 
+view_mask = np.zeros((100, 100))
+rr, cc = polygon(np.array([30, 30, 50]), np.array([40, 60, 50]))
+view_mask[rr, cc] = 1
 
-# Packing function:
-def pack_lut(lut, toa, timestep):
-    max_time = 0
-    for i in xrange(0, len(toa)):
-        for j in xrange(0, len(toa[0])):
-            if toa[i][j] == -1:
-                continue
-            time = _floor(toa[i][j], timestep)
-            cell = (i,j)
-            if lut.get(time) is None:
-                lut[time] = set([cell])
-            else:
-                lut[time].add(cell)   
-            if time > max_time:
-                max_time = time
-    return max_time
+fire_map = np.zeros_like(fli)
 
-max_time = pack_lut(lut, toa, timestep)
-
-
-
-"""
-print len(fli)*len(fli[0])
-total = 0
-for k,v in lut.items():
-    total += len(v)
-print total
-"""
-im = ax.matshow(anim_plot)
+im = ax.matshow(fire_map)
 im.set_clim(0, 1000)
-#fig.show()
-totalplotted = 0
 
-for i in range(0,max_time,timestep):
-    if lut.get(i) is not None:
-        totalplotted += len(lut[i])
+max_time = math.ceil(np.amax(toa))
 
+for t in np.arange(0, max_time, TIMESTEP):
+	fire_map = np.logical_and(toa < t, toa > 0)
+	fire_map = np.where(fire_map, fli, np.zeros_like(fli))
 
-        #print len(lut[i]), "cells to plot,", totalplotted, "plotted so far"
-        for x,y in lut[i]:
-            fire_map[x][y]= fli[x][y]
-	    #print anim_plot[x][y], "setting to", fli[x][y], ":"
-            anim_plot[x][y]= fli[x][y]
-            #for i in (x-1,x,x+1):
-            #    for j in (y-1,y,y+1):
-            #        print anim_plot[i][j]
-           
 	frontier = fire_map > 0
+
 	frontier = convolve2d(frontier, [[1, 1, 1], [1, 0, 1], [1, 1, 1]], mode='same')
-
-	frontier = np.logical_and(frontier < 8, frontier > 0)
-	frontier = np.where(frontier == True, fire_map, np.zeros_like(fire_map))
 		
+	frontier_tf = np.logical_and(frontier < 8, frontier > 0)
 
-	im.set_data(frontier)
-    plt.pause(0.001)
+	frontier = np.where(frontier_tf == True, fire_map, np.zeros_like(fire_map))
+
+	uav_pos = (t * 10, t * 10) #this will be updated to get locations from algorithm.
+	view_mask_rot = rotate(view_mask, t * 10) #this too
+
+	view_mask_rot_tf= np.logical_and(view_mask_rot, np.zeros_like(view_mask_rot))
+
+
+	print view_mask_rot_tf
+
+	#fire_map=np.logical_and(frontier_tf[uav_pos[0]:(uav_pos[0]+100),uav_pos[1]:(uav_pos[1]+100)], view_mask_rot_tf)	
+
+	#print fire_map
+
+	#combined=np.where(fire_map== True, frontier[uav_pos[0]:(uav_pos[0]+100),uav_pos[1]:(uav_pos[1]+100)]= view_mask_rot *100, frontier)
+
+	
+	#im.set_data(combined)
+
+	plt.pause(0.0001)
 
 plt.show()   # Stop at end.
 
