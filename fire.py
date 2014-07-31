@@ -72,26 +72,32 @@ for t in np.arange(0, max_time, TIMESTEP):
 
 	frontier = convolve2d(frontier, [[1, 1, 1], [1, 0, 1], [1, 1, 1]], mode='same')
 		
-	frontier_tf = np.logical_and(frontier < 8, frontier > 0)
+	frontier = np.logical_and(frontier < 8, frontier > 0)
 
-	frontier = np.where(frontier_tf == True, fire_map, np.zeros_like(fire_map))
+	frontier = np.where(frontier == True, fire_map, np.zeros_like(fire_map))
 
-	uav_pos = (t * 10, t * 10) #this will be updated to get locations from algorithm.
+	uav_pos = (t * 20, t * 20) #this will be updated to get locations from algorithm.
 	view_mask_rot = rotate(view_mask, t * 10) #this too
+	view_mask_rot = view_mask_rot * 100
 
-	view_mask_rot_tf= np.logical_and(view_mask_rot, np.zeros_like(view_mask_rot))
+	#view_mask_rot_tf= np.logical_and(view_mask_rot, np.zeros_like(view_mask_rot))
 
 
-	print view_mask_rot_tf
+	#print view_mask_rot_tf
 
-	#fire_map=np.logical_and(frontier_tf[uav_pos[0]:(uav_pos[0]+100),uav_pos[1]:(uav_pos[1]+100)], view_mask_rot_tf)	
+	# fire_map=np.logical_and(frontier[uav_pos[0]:(uav_pos[0]+100),uav_pos[1]:(uav_pos[1]+100)], view_mask_rot)	
 
 	#print fire_map
 
-	#combined=np.where(fire_map== True, frontier[uav_pos[0]:(uav_pos[0]+100),uav_pos[1]:(uav_pos[1]+100)]= view_mask_rot *100, frontier)
+	# np.where(fire_map == True, fire_map[uav_pos[0]:(uav_pos[0]+100), uav_pos[1]:(uav_pos[1]+100)], view_mask_rot *100, np.zeros_like(fire_map))
 
+	view_mask_rot= np.where(frontier[uav_pos[0]:uav_pos[0]+100,uav_pos[1]:uav_pos[1]+100] > 0, frontier[uav_pos[0]:uav_pos[0]+100,uav_pos[1]:uav_pos[1]+100], view_mask_rot)
 	
-	#im.set_data(combined)
+	frontier[uav_pos[0]:uav_pos[0]+100,uav_pos[1]:uav_pos[1]+100] = view_mask_rot
+	
+#	print view_mask_rot
+
+	im.set_data(frontier)
 
 	plt.pause(0.0001)
 
