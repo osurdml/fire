@@ -62,7 +62,22 @@ fire_map = np.zeros_like(fli)
 im = ax.matshow(fire_map)
 im.set_clim(0, 1000)
 
+uav_pos= (50,50)
+view_mask_rot= view_mask 
+hotspots = np.zeros(10)
+ 
+def algorithm(uav_pos,view_mask_rot, hotspots):
+	#hotspots= np.zeros_like(view_mask_rot)
+	hotspots= np.append(np.argsort(-view_mask_rot)[:3], hotspots) #this returns indexs, need to fix
+	hotspots= np.argsort(-hotspots)[:10]
+	print hotspots
+	uav_pos= (uav_pos[0]+1, uav_pos[1]+1)
+	view_mask_rot= rotate(view_mask,uav_pos[0]*5)
+	return uav_pos, view_mask_rot, hotspots
+
 max_time = math.ceil(np.amax(toa))
+
+
 
 for t in np.arange(0, max_time, TIMESTEP):
 	fire_map = np.logical_and(toa < t, toa > 0)
@@ -76,24 +91,18 @@ for t in np.arange(0, max_time, TIMESTEP):
 
 	frontier = np.where(frontier == True, fire_map, np.zeros_like(fire_map))
 
-	uav_pos = (t * 20, t * 20) #this will be updated to get locations from algorithm.
-	view_mask_rot = rotate(view_mask, t * 10) #this too
+	#uav_pos = algorithm(uav_pos)# (t * 20, t * 20) #this will be updated to get locations from algorithm.
+	uav_pos, view_mask_rot, hotspots = algorithm(uav_pos, view_mask_rot, hotspots) #rotate(view_mask, t * 10) #this too
 	view_mask_rot = view_mask_rot * 100
 
 	#view_mask_rot_tf= np.logical_and(view_mask_rot, np.zeros_like(view_mask_rot))
 
 
-	#print view_mask_rot_tf
-
-	# fire_map=np.logical_and(frontier[uav_pos[0]:(uav_pos[0]+100),uav_pos[1]:(uav_pos[1]+100)], view_mask_rot)	
-
-	#print fire_map
-
-	# np.where(fire_map == True, fire_map[uav_pos[0]:(uav_pos[0]+100), uav_pos[1]:(uav_pos[1]+100)], view_mask_rot *100, np.zeros_like(fire_map))
-
 	view_mask_rot= np.where(frontier[uav_pos[0]:uav_pos[0]+100,uav_pos[1]:uav_pos[1]+100] > 0, frontier[uav_pos[0]:uav_pos[0]+100,uav_pos[1]:uav_pos[1]+100], view_mask_rot)
 	
 	frontier[uav_pos[0]:uav_pos[0]+100,uav_pos[1]:uav_pos[1]+100] = view_mask_rot
+
+	
 	
 #	print view_mask_rot
 
