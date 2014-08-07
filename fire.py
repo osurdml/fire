@@ -12,7 +12,7 @@ TIMESTEP = 0.1
 import math
 import numpy as np
 from scipy.signal import convolve2d
-from skimage.draw import polygon, circle
+from skimage.draw import polygon, circle, line
 from skimage.transform import rotate
 import matplotlib.pyplot as plt
 #from mpl_toolkits.basemap import Basemap
@@ -41,7 +41,6 @@ class uav():
 	pose= 45
 
 uav1 =uav()
-print uav1.fov_h
 
 
 """
@@ -70,41 +69,51 @@ def algorithm(uav_pos,view_mask_rot, hotspots):
 	#hotspots= np.zeros_like(view_mask_rot)
 	hotspots= np.append(np.argsort(-view_mask_rot)[:3], hotspots) #this returns indexs, need to fix
 	hotspots= np.argsort(-hotspots)[:10]
-	print hotspots
 	uav_pos= (uav_pos[0]+1, uav_pos[1]+1)
 	view_mask_rot= rotate(view_mask,uav_pos[0]*5)
 	return uav_pos, view_mask_rot, hotspots
 
 max_time = math.ceil(np.amax(toa))
 
-
-
 for t in np.arange(0, max_time, TIMESTEP):
+	# Find burning areas within the current time interval
 	fire_map = np.logical_and(toa < t, toa > 0)
 	fire_map = np.where(fire_map, fli, np.zeros_like(fli))
 
+	# Extract the fire line
 	frontier = fire_map > 0
-
 	frontier = convolve2d(frontier, [[1, 1, 1], [1, 0, 1], [1, 1, 1]], mode='same')
-		
 	frontier = np.logical_and(frontier < 8, frontier > 0)
-
 	frontier = np.where(frontier == True, fire_map, np.zeros_like(fire_map))
 
-	#uav_pos = algorithm(uav_pos)# (t * 20, t * 20) #this will be updated to get locations from algorithm.
+	# Position the UAV
 	uav_pos, view_mask_rot, hotspots = algorithm(uav_pos, view_mask_rot, hotspots) #rotate(view_mask, t * 10) #this too
 	view_mask_rot = view_mask_rot * 100
 
-	#view_mask_rot_tf= np.logical_and(view_mask_rot, np.zeros_like(view_mask_rot))
+	(xs, ys) = np.nonzero(frontier)
+	if xs.size > 0:
+		# dists = np.sum((frontier_points - np.array([uav_pos[0], uav_pos[1]])) ** 2, axis=1)
+		dists = (xs - uav_pos[0]) ** 2 + (ys - uav_pos[1]) ** 2
+		nearest = np.argmin(dists)
 
+		for dx in range(-1, 2):
+			for dy in range(-1, 2):
+				frontier[xs[nearest] + dx, ys[nearest] + dy] = 5000
 
-	view_mask_rot= np.where(frontier[uav_pos[0]:uav_pos[0]+100,uav_pos[1]:uav_pos[1]+100] > 0, frontier[uav_pos[0]:uav_pos[0]+100,uav_pos[1]:uav_pos[1]+100], view_mask_rot)
-	
-	frontier[uav_pos[0]:uav_pos[0]+100,uav_pos[1]:uav_pos[1]+100] = view_mask_rot
+		vec_to_nearest = np.array([xs[nearest] - uav_pos[0], ys[nearest] - uav_pos[1]])
+		vec_to_nearest = vec_to_nearest / np.linalg.norm(vec_to_nearest)
+		perp_vec = np.empty_like(vec_to_nearest)
+		perp_vec[0] = -vec_to_nearest[1]
+		perp_vec[1] = vec_to_nearest[0]
 
-	
-	
-#	print view_mask_rot
+		rr, cc = line(uav_pos[0], uav_pos[1],
+			int(uav_pos[0] + perp_vec[0] * 10),
+			int(uav_pos[1] + perp_vec[1] * 10))
+		frontier[rr, cc] = 5000
+
+	frontier[uav_pos[0], uav_pos[1]] = 5000
+
+	hotspots = np.where(frontier > 500)
 
 	im.set_data(frontier)
 
