@@ -19,7 +19,7 @@ import matplotlib.pyplot as plt
 import pylab
 from osgeo import gdal
 import matplotlib.animation as animation
-from sklearn.cluster import MiniBatchKMeans
+from sklearn.cluster import KMeans
 
 np.set_printoptions(threshold='nan')
 fig = plt.figure()
@@ -124,22 +124,13 @@ for t in np.arange(0, max_time, TIMESTEP):
 
 			
 		#time_counter= time_counter +1
-		hotspots = np.where(frontier_only > 500, frontier, np.zeros_like(frontier))
-		kmeans_indices=np.where(hotspots)	
-		print kmeans_indices
-		k = MiniBatchKMeans(n_clusters=2)
-		kmeans_indices= k.fit(kmeans_indices)
-		centers= k.cluster_centers_
+		hotspots = np.asarray(np.where(frontier_only > 200)).reshape((-1, 2))
+		k = KMeans(n_clusters=2)
+		kmeans_indices= k.fit(hotspots)
+		centers = k.cluster_centers_
 
+		print "Centers:", centers
 
-
-	
-		
-		
-		print "\n\n\n\n", type(k), "\n\n\n\n"
-		print centers
-		#print hotspots_new[:,0], ",", hotspots_new[:,1]
-		
 
 		"""
 		hotspots= np.logical_and(hotspots[uav_pos[0]-50:uav_pos[0]+50,uav_pos[1]-50:uav_pos[1]+50], view_mask_rot)
@@ -149,7 +140,7 @@ for t in np.arange(0, max_time, TIMESTEP):
 #use k clustering to find hotspots, calculate their average x,y location and compare/match it with the closest location in the next iteration. To determine K value do a percentage of cells in cluster that are not hotspots if over percentage then increase the K value. Track the time untracked of each cluster. Implement algorithm; time untracked, distance to hotspot times some constant.
 	"""	
 
-		im.set_data(hotspots)
+		# im.set_data(hotspots)
 	
 		plt.pause(0.0001)
 
