@@ -76,7 +76,7 @@ for t in np.arange(0, max_time, TIMESTEP):
 		frontier = convolve2d(frontier, [[1, 1, 1], [1, 0, 1], [1, 1, 1]], mode='same')
 		frontier = np.logical_and(frontier < 8, frontier > 0)
 		frontier = np.where(frontier == True, fire_map, np.zeros_like(fire_map))
-	
+		frontier_only= frontier	
 		# Calculate distances to each point on the fireline
 		(xs, ys) = np.nonzero(frontier)
 		if xs.size > 0:
@@ -110,10 +110,10 @@ for t in np.arange(0, max_time, TIMESTEP):
 		# Show the location of the UAV
 		for lx in range(-1,2):
 			for ly in range(-1,2):
-				frontier[uav_pos[0]+lx, uav_pos[1]+ly] = 5000
+				frontier[uav_pos[0]+lx, uav_pos[1]+ly] = 499
 		for dx in [-2,-2,2,2]:
 			for dy in [-2,-2,2,2]:
-				frontier[uav_pos[0]+dx, uav_pos[1]+dy] = 5000
+				frontier[uav_pos[0]+dx, uav_pos[1]+dy] = 499 
 
 		#UAV FOV
 		#print yaw
@@ -124,16 +124,22 @@ for t in np.arange(0, max_time, TIMESTEP):
 
 			
 		#time_counter= time_counter +1
-		hotspots = np.where(frontier > 500)
+		hotspots = np.where(frontier_only > 500, frontier, np.zeros_like(frontier))
+		kmeans_indices=np.where(hotspots)	
+		print kmeans_indices
 		k = MiniBatchKMeans(n_clusters=2)
-		hotspots= k.fit(hotspots)
-		hotspots= k.cluster_centers_
-		hotspots_new= hotspots
+		kmeans_indices= k.fit(kmeans_indices)
+		centers= k.cluster_centers_
+
+
+
+	
 		
 		
 		print "\n\n\n\n", type(k), "\n\n\n\n"
-		print hotspots[:,0], ",", hotspots[:,1]
-
+		print centers
+		#print hotspots_new[:,0], ",", hotspots_new[:,1]
+		
 
 		"""
 		hotspots= np.logical_and(hotspots[uav_pos[0]-50:uav_pos[0]+50,uav_pos[1]-50:uav_pos[1]+50], view_mask_rot)
@@ -143,7 +149,7 @@ for t in np.arange(0, max_time, TIMESTEP):
 #use k clustering to find hotspots, calculate their average x,y location and compare/match it with the closest location in the next iteration. To determine K value do a percentage of cells in cluster that are not hotspots if over percentage then increase the K value. Track the time untracked of each cluster. Implement algorithm; time untracked, distance to hotspot times some constant.
 	"""	
 
-		im.set_data(frontier)
+		im.set_data(hotspots)
 	
 		plt.pause(0.0001)
 
