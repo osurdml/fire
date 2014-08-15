@@ -7,7 +7,7 @@ Wildfire UAV exploration/exploitation monitoring simulation
 """
 #!/usr/bin/env python2
 
-TIMESTEP = 0.1
+TIMESTEP = .05
 
 import math
 import numpy as np
@@ -19,7 +19,7 @@ import matplotlib.pyplot as plt
 import pylab
 from osgeo import gdal
 import matplotlib.animation as animation
-
+from sklearn.cluster import MiniBatchKMeans
 
 np.set_printoptions(threshold='nan')
 fig = plt.figure()
@@ -46,19 +46,24 @@ view_mask_rot= view_mask
 perp_vec= [0,0] 
 vec_to_nearest= [0,0]
 uav_dist=[0]
+yaw= [0]
 
 # function for uav location and path planning 
-def uav_pose(uav_dist, uav_pos,view_mask_rot,perp_vec,vec_to_nearest):
+def uav_pose(uav_dist, uav_pos, perp_vec, vec_to_nearest, yaw):
 	if uav_dist >15:
 		uav_pos=(int(uav_pos[0]+vec_to_nearest[0]*2), int(uav_pos[1]+vec_to_nearest[1]*2))
-	elif uav_dist <10:
+	elif uav_dist <11:
 		uav_pos=(int(uav_pos[0]-vec_to_nearest[0]*2), int(uav_pos[1]-vec_to_nearest[1]*2))
 	else:
 		uav_pos= (int(uav_pos[0]+perp_vec[0]*2), int(uav_pos[1]+perp_vec[1]*2))
-	view_mask_rot= rotate(view_mask,uav_pos[0]*5) #TODO math to point view_mask towards nearest vec
-	return uav_pos, view_mask_rot #perp_vec, vec_to_nearest
+	starting_vec= [-1,0]
+	yaw = math.atan2(vec_to_nearest[1], vec_to_nearest[0])- math.atan2(starting_vec[1], starting_vec[0])
+	return uav_pos, yaw 
+
 
 max_time = math.ceil(np.amax(toa))
+#time_counter=0
+
 
 for t in np.arange(0, max_time, TIMESTEP):
 	for i in range(10):	
@@ -78,12 +83,12 @@ for t in np.arange(0, max_time, TIMESTEP):
 			dists = (xs - uav_pos[0]) ** 2 + (ys - uav_pos[1]) ** 2
 			nearest = np.argmin(dists)
 			uav_dist= np.sqrt((xs[nearest]-uav_pos[0])**2 + (ys[nearest]-uav_pos[1])**2)	
-			#print uav_dist
+			"""
 			# Store the nearest point on fireline 
 			for dx in range(-1, 2):
 				for dy in range(-1, 2):
 					frontier[xs[nearest] + dx, ys[nearest] + dy] = 5000
-	
+			"""
 			# Find the perpendicular vector to the fireline
 			vec_to_nearest = np.array([xs[nearest] - uav_pos[0], ys[nearest] - uav_pos[1]])
 			vec_to_nearest = vec_to_nearest / np.linalg.norm(vec_to_nearest)
@@ -91,22 +96,53 @@ for t in np.arange(0, max_time, TIMESTEP):
 			perp_vec[0] = -vec_to_nearest[1]
 			perp_vec[1] = vec_to_nearest[0]
 	
+			"""
 			# Plot the perpendicular vector
 			rr, cc = line(uav_pos[0], uav_pos[1],
 				int(uav_pos[0] + perp_vec[0] * 10),
 				int(uav_pos[1] + perp_vec[1] * 10))
 			frontier[rr, cc] = 5000
-		
+			"""
+
 		# Position the UAV
-		uav_pos, view_mask_rot= uav_pose(uav_dist, uav_pos, view_mask_rot, perp_vec, vec_to_nearest)
-		view_mask_rot = view_mask_rot * 100
-	
-	
+		uav_pos, yaw= uav_pose(uav_dist, uav_pos, perp_vec, vec_to_nearest, yaw)
+		
 		# Show the location of the UAV
-		frontier[uav_pos[0], uav_pos[1]] = 5000
-	
+		for lx in range(-1,2):
+			for ly in range(-1,2):
+				frontier[uav_pos[0]+lx, uav_pos[1]+ly] = 5000
+		for dx in [-2,-2,2,2]:
+			for dy in [-2,-2,2,2]:
+				frontier[uav_pos[0]+dx, uav_pos[1]+dy] = 5000
+
+		#UAV FOV
+		#print yaw
+		#print math.degrees(yaw)
+		view_mask_rot= rotate(view_mask, math.degrees(yaw))
+		view_mask_rot= np.where(frontier[uav_pos[0]-50:uav_pos[0]+50,uav_pos[1]-50:uav_pos[1]+50] > 0, frontier[uav_pos[0]-50:uav_pos[0]+50,uav_pos[1]-50:uav_pos[1]+50], view_mask_rot*100)	
+		frontier[uav_pos[0]-50:uav_pos[0]+50,uav_pos[1]-50:uav_pos[1]+50] = view_mask_rot 			
+
+			
+		#time_counter= time_counter +1
 		hotspots = np.where(frontier > 500)
-	
+		k = MiniBatchKMeans(n_clusters=2)
+		hotspots= k.fit(hotspots)
+		hotspots= k.cluster_centers_
+		hotspots_new= hotspots
+		
+		
+		print "\n\n\n\n", type(k), "\n\n\n\n"
+		print hotspots[:,0], ",", hotspots[:,1]
+
+
+		"""
+		hotspots= np.logical_and(hotspots[uav_pos[0]-50:uav_pos[0]+50,uav_pos[1]-50:uav_pos[1]+50], view_mask_rot)
+		untracked_hotspots = untracked_hotspots+hotspots 		
+		print untracked_hotspots
+
+#use k clustering to find hotspots, calculate their average x,y location and compare/match it with the closest location in the next iteration. To determine K value do a percentage of cells in cluster that are not hotspots if over percentage then increase the K value. Track the time untracked of each cluster. Implement algorithm; time untracked, distance to hotspot times some constant.
+	"""	
+
 		im.set_data(frontier)
 	
 		plt.pause(0.0001)
